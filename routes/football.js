@@ -1,28 +1,57 @@
 var express = require('express')
 var router = express.Router()
 var fetch = require('node-fetch')
-const API_KEY = '9bb66184e0c8145384fd2cc0f7b914ada57b4e8fd2e4d6d586adcc27c257a978'
+var config = require('config')
+
+const API_KEY = config.get("apiKey")
+const hostname = config.get("host")
+var validCountries = []
 
 router.get('/getCountries', function (req, resp) {
-    fetch(`https://apiv2.apifootball.com/?action=get_countries&APIkey=${API_KEY}`)
+    if (!validateKey(API_KEY)) {
+        resp.status(401)
+        return
+    }
+    fetch(`${hostname}/?action=get_countries&APIkey=${API_KEY}`)
         .then(res => res.json())
         .then(json => {
             console.log(`get countries ${JSON.stringify(json)}`)
             resp.json(json)
-        });
+            validCountries.length <= 0 &&
+                    json.forEach(data => {
+                        console.log(`country is ${data.country_id}`)
+                        validCountries.push(data.country_id);
+                    });
+            console.log(`validCountries are ${validCountries}`)        
+        })
 })
 
 router.get('/leagues/:countryID', (req, resp) => {
-    fetch(`https://apiv2.apifootball.com/?action=get_leagues&country_id=${req.params.countryID}&APIkey=${API_KEY}`)
+    if (!validateKey(API_KEY)) {
+        resp.status(401)
+        return
+    }
+    if (!validCountries.includes(req.params.countryID)) {
+        resp.status(401).json({"Error" : "Not valid input"})
+        return
+    }
+
+    fetch(`${hostname}/?action=get_leagues&country_id=${req.params.countryID}&APIkey=${API_KEY}`)
         .then(res => res.json())
         .then(json => {
             console.log(`get leagues ${JSON.stringify(json)}`)
             resp.json(json)
+            
         });
 })
 
 router.get('/teams/:leagueID', (req, resp) => {
-    fetch(`https://apiv2.apifootball.com/?action=get_teams&league_id=${req.params.leagueID}&APIkey=${API_KEY}`)
+    if (!validateKey(API_KEY)) {
+        resp.status(401)
+        return
+    }
+    //todo: validate teams and league id from input
+    fetch(`${hostname}/?action=get_teams&league_id=${req.params.leagueID}&APIkey=${API_KEY}`)
         .then(res => res.json())
         .then(json => {
             console.log(`get teams ${JSON.stringify(json)}`)
@@ -31,7 +60,12 @@ router.get('/teams/:leagueID', (req, resp) => {
 })
 
 router.get('/standings/:leagueID', (req, resp) => {
-    fetch(`https://apiv2.apifootball.com/?action=get_standings&league_id=${req.params.leagueID}&APIkey=${API_KEY}`)
+      //todo: validate standings and league id from input
+    if (!validateKey(API_KEY)) {
+        resp.status(401)
+        return
+    }
+    fetch(`${hostname}/?action=get_standings&league_id=${req.params.leagueID}&APIkey=${API_KEY}`)
         .then(res => res.json())
         .then(json => {
             console.log(`get standings ${JSON.stringify(json)}`)
@@ -39,5 +73,14 @@ router.get('/standings/:leagueID', (req, resp) => {
         });
 })
 
+function validateKey(params) {
+    var pattern = /^[0-9a-zA-Z]+$/; 
+    if(params.match(pattern)) {
+        console.log(`${params} validation pass`)
+        return true
+    }
+    console.log(`${params} validation fails`)
+    return false
+}
 
 module.exports = router
